@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pitch Map">
+<meta name="theme-color" content="#0a1420">
+<title>Pitch Map — ProCoach OS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #0a1420; }
+  #app {
+    --bg:#0a1420; --card:#111d30; --card-border:rgba(255,255,255,0.07);
+    --accent:#22c58b; --accent-dim:rgba(34,197,139,0.16); --accent-strong:#1bb37e;
+    --text:#eef2f6; --text-dim:#8b96a5; --danger:#ff6b52;
+    --turf-deep:#173d20; --turf-mid:#204d29;
+    font-family:'Inter',sans-serif; background:var(--bg); color:var(--text);
+    min-height:100%; padding:10px;
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+  .pm-display{font-family:'Poppins',sans-serif;}
+  .pm-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .pm-title{font-size:19px;font-weight:800;color:var(--accent);letter-spacing:-0.01em;font-family:'Poppins',sans-serif;}
+  .pm-subtitle{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);font-weight:600;}
+
+  .pm-bowler-row{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;-webkit-overflow-scrolling:touch;}
+  .pm-tab{flex-shrink:0;font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;background:var(--card);border:1px solid var(--card-border);color:var(--text-dim);border-radius:999px;padding:8px 14px;cursor:pointer;min-height:36px;}
+  .pm-tab.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent);}
+  .pm-tab.add{color:var(--accent);border:1px dashed var(--accent);background:transparent;}
+
+  .pm-name-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+  .pm-input{background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:9px 12px;font-family:'Inter',sans-serif;font-size:13.5px;color:var(--text);min-height:38px;}
+  .pm-input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .pm-input.grow{flex:1;}
+  .pm-input-date{width:130px;}
+  .pm-link-btn{background:none;border:none;color:var(--danger);font-size:11.5px;font-family:'Inter',sans-serif;cursor:pointer;padding:8px 4px;white-space:nowrap;}
+
+  .pm-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .pm-seg{display:inline-flex;border:1px solid var(--card-border);border-radius:999px;overflow:hidden;background:var(--card);}
+  .pm-seg button{background:transparent;color:var(--text-dim);border:none;padding:8px 12px;font-size:11.5px;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;min-height:36px;}
+  .pm-seg button.active{background:var(--accent);color:#04140d;}
+  .pm-over-indicator{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);font-weight:600;}
+
+  .pm-pitch-wrap{position:relative;background:linear-gradient(180deg,var(--turf-mid),var(--turf-deep));border-radius:20px;padding:10px;height:min(66vh,720px);display:flex;justify-content:center;border:1px solid var(--card-border);}
+  .pm-pitch-svg{height:100%;width:auto;display:block;cursor:crosshair;border-radius:8px;touch-action:manipulation;}
+  .pm-legend-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:8px;font-size:10.5px;color:var(--text-dim);font-family:'Inter',sans-serif;}
+  .pm-legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;}
+
+  .pm-chip-row{display:flex;gap:6px;overflow-x:auto;padding:8px 2px 2px;-webkit-overflow-scrolling:touch;}
+  .pm-chip{flex-shrink:0;font-family:'Inter',sans-serif;font-size:11.5px;font-weight:600;background:var(--card);border:1px solid var(--card-border);color:var(--text-dim);border-radius:999px;padding:7px 13px;cursor:pointer;min-height:34px;}
+  .pm-chip.active{background:var(--accent);color:#04140d;border-color:var(--accent);}
+
+  .pm-panel{background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:14px 16px;margin-top:12px;}
+  .pm-panel-title{font-family:'Poppins',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+  .pm-panel-title .dim{color:var(--text-dim);font-weight:500;font-size:12px;}
+  .pm-seam{border:none;height:1px;background:var(--card-border);margin:12px 0;}
+  .pm-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .pm-stat{background:rgba(255,255,255,0.03);border:1px solid var(--card-border);border-radius:12px;padding:10px 8px;text-align:center;}
+  .pm-stat-val{font-family:'Poppins',sans-serif;font-size:19px;font-weight:800;color:var(--accent);}
+  .pm-stat-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin-top:2px;}
+  .pm-zone-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px;}
+  .pm-zone-label{width:82px;flex-shrink:0;color:var(--text-dim);}
+  .pm-zone-bar-track{flex:1;height:7px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;}
+  .pm-zone-bar-fill{height:100%;background:var(--accent);border-radius:4px;}
+  .pm-zone-count{width:18px;text-align:right;font-family:'IBM Plex Mono',monospace;color:var(--text);}
+
+  .pm-btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#04140d;border:none;border-radius:999px;padding:10px 15px;font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;min-height:40px;touch-action:manipulation;}
+  .pm-btn.secondary{background:var(--card);color:var(--text);border:1px solid var(--card-border);}
+  .pm-btn.danger{background:var(--card);color:var(--danger);border:1px solid var(--danger);}
+  .pm-btn:disabled{opacity:.4;}
+  .pm-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+
+  .pm-ball-list{max-height:220px;overflow-y:auto;}
+  .pm-ball-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--card-border);font-size:12px;}
+  .pm-ball-row:last-child{border-bottom:none;}
+  .pm-ball-tag{display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;color:var(--text);}
+  .pm-ball-swatch{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .pm-x-btn{background:rgba(255,255,255,0.06);border:none;color:var(--text-dim);cursor:pointer;padding:6px 10px;font-size:14px;border-radius:8px;min-height:32px;min-width:32px;touch-action:manipulation;}
+  .pm-x-btn:active{color:var(--danger);}
+
+  .pm-popover{position:absolute;background:var(--card);border:1.5px solid var(--accent);border-radius:12px;padding:8px;box-shadow:0 12px 30px rgba(0,0,0,.5);display:grid;grid-template-columns:repeat(3,1fr);gap:5px;z-index:20;width:186px;}
+  .pm-outcome-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;border:none;border-radius:6px;padding:9px 4px;cursor:pointer;color:#04140d;min-height:36px;touch-action:manipulation;}
+
+  .pm-empty-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:rgba(244,241,232,0.8);font-size:12px;font-style:italic;pointer-events:none;}
+  .pm-status{font-size:12px;color:var(--accent);margin-top:8px;}
+  .pm-load-list{max-height:260px;overflow-y:auto;}
+  .pm-load-row{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--card-border);border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,0.02);font-size:12.5px;}
+  .pm-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .pm-modal{background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:18px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  var OUTCOMES = [
+    { id:"dot", label:"Dot", runs:0, color:"#7d93a3" },
+    { id:"1", label:"1 run", runs:1, color:"#3fae7e" },
+    { id:"2", label:"2 runs", runs:2, color:"#3fae7e" },
+    { id:"3", label:"3 runs", runs:3, color:"#3fae7e" },
+    { id:"4", label:"FOUR", runs:4, color:"#3d8bd6" },
+    { id:"6", label:"SIX", runs:6, color:"#e0ab2c" },
+    { id:"W", label:"Wicket", runs:0, color:"#ff6b52" },
+    { id:"wd", label:"Wide", runs:1, color:"#b98ce0" },
+    { id:"nb", label:"No ball", runs:1, color:"#b98ce0" },
+  ];
+  var outcomeMap = {}; OUTCOMES.forEach(function(o){ outcomeMap[o.id] = o; });
+
+  var PITCH_LENGTH_M = 20.12;
+  var LENGTH_ZONES = [
+    { id:"yorker", label:"Yorker", from:0, to:1 },
+    { id:"full", label:"Full", from:1, to:3 },
+    { id:"good", label:"Good length", from:3, to:6 },
+    { id:"short", label:"Short", from:6, to:9 },
+    { id:"bouncer", label:"Bouncer", from:9, to:PITCH_LENGTH_M },
+  ];
+  var LINE_LABELS_RHB = ["Wide leg","Leg stump","Middle","Off stump","Wide off"];
+  var LINE_LABELS_LHB = ["Wide off","Off stump","Middle","Leg stump","Wide leg"];
+  var VB_W = 200, VB_H = 600, RULER_W = 36, VB_W_TOTAL = VB_W + RULER_W;
+  var POPPING_CREASE_M = 1.22, CREASE_HALF_W = 23; // ICC Law 7: popping crease 1.22m from stumps, return creases 1.32m either side of middle stump
+
+  function lengthZoneFor(yPct){
+    var d = (yPct/100)*PITCH_LENGTH_M;
+    for (var i=0;i<LENGTH_ZONES.length;i++){ var z=LENGTH_ZONES[i]; if (d>=z.from && d<z.to) return z; }
+    return LENGTH_ZONES[LENGTH_ZONES.length-1];
+  }
+  function lineColIndex(xPct){ return Math.min(4, Math.floor(xPct/20)); }
+  function lineLabel(xPct, hand){ return (hand==="LHB"?LINE_LABELS_LHB:LINE_LABELS_RHB)[lineColIndex(xPct)]; }
+  function clamp(n,lo,hi){ return Math.max(lo, Math.min(hi, n)); }
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  function declutter(balls){
+    var pts = balls.map(function(b){ return Object.assign({}, b, { x:(b.xPct/100)*VB_W, y:(b.yPct/100)*VB_H }); });
+    var buckets = {};
+    pts.forEach(function(b){
+      var key = Math.round(b.x/13)+"_"+Math.round(b.y/13);
+      (buckets[key] = buckets[key] || []).push(b);
+    });
+    var out = [];
+    Object.keys(buckets).forEach(function(key){
+      var group = buckets[key], n = group.length;
+      var cx = group.reduce(function(s,g){return s+g.x;},0)/n;
+      var cy = group.reduce(function(s,g){return s+g.y;},0)/n;
+      group.forEach(function(b,i){
+        if (n===1){ out.push(Object.assign({}, b, { dx:b.x, dy:b.y })); return; }
+        var ring = Math.floor(i/7)+1;
+        var posInRing = i%7;
+        var countInRing = Math.min(7, n-Math.floor(i/7)*7);
+        var angle = (2*Math.PI*posInRing)/countInRing - Math.PI/2;
+        var r = 7.5*ring;
+        out.push(Object.assign({}, b, {
+          dx: clamp(cx + r*Math.cos(angle)*0.55, 5, VB_W-5),
+          dy: clamp(cy + r*Math.sin(angle), 14, VB_H-14),
+        }));
+      });
+    });
+    return out;
+  }
+  function withOvers(balls){
+    var legit = 0;
+    return balls.map(function(b){
+      var over = Math.floor(legit/6)+1, ballNo = (legit%6)+1;
+      if (b.outcome!=="wd" && b.outcome!=="nb") legit++;
+      return Object.assign({}, b, { over:over, ballNo:ballNo });
+    });
+  }
+
+  var firstId = uid();
+  var state = {
+    bowlers: {},
+    currentBowlerId: firstId,
+    sessionDate: new Date().toISOString().slice(0,10),
+    pending: null,
+    viewMode: "dots",
+    overFilter: "all",
+    showLoad: false,
+    status: "",
+  };
+  state.bowlers[firstId] = { name: "Bowler 1", hand: "RHB", balls: [] };
+
+  function cb(){ return state.bowlers[state.currentBowlerId]; }
+
+  var app = document.getElementById("app");
+
+  function savedSessionKeys(){
+    var keys = [];
+    for (var i=0;i<localStorage.length;i++){
+      var k = localStorage.key(i);
+      if (k && k.indexOf("pitchsession:")===0) keys.push(k);
+    }
+    keys.sort().reverse();
+    return keys;
+  }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+  function render(){
+    var bowler = cb();
+    var ballsWithOvers = withOvers(bowler.balls);
+    var overNumbers = Array.from(new Set(ballsWithOvers.map(function(b){return b.over;}))).sort(function(a,b){return a-b;});
+    var visibleBalls = state.overFilter==="all" ? ballsWithOvers : ballsWithOvers.filter(function(b){return b.over===state.overFilter;});
+    var decluttered = declutter(visibleBalls);
+
+    var statBalls = visibleBalls;
+    var legit = statBalls.filter(function(b){return b.outcome!=="wd" && b.outcome!=="nb";});
+    var totalRuns = statBalls.reduce(function(s,b){return s+outcomeMap[b.outcome].runs;},0);
+    var wickets = statBalls.filter(function(b){return b.outcome==="W";}).length;
+    var dots = statBalls.filter(function(b){return b.outcome==="dot";}).length;
+    var boundaries = statBalls.filter(function(b){return b.outcome==="4"||b.outcome==="6";}).length;
+    var economy = legit.length ? (totalRuns/legit.length)*6 : 0;
+    var dotPct = legit.length ? (dots/legit.length)*100 : 0;
+
+    var lengthCounts = LENGTH_ZONES.map(function(z){
+      return Object.assign({}, z, { count: statBalls.filter(function(b){return lengthZoneFor(b.yPct).id===z.id;}).length });
+    });
+    var lineLabels = bowler.hand==="LHB" ? LINE_LABELS_LHB : LINE_LABELS_RHB;
+    var lineCounts = lineLabels.map(function(label,i){
+      return { label:label, count: statBalls.filter(function(b){return lineColIndex(b.xPct)===i;}).length };
+    });
+    var maxLengthCount = Math.max.apply(null, [1].concat(lengthCounts.map(function(z){return z.count;})));
+    var maxLineCount = Math.max.apply(null, [1].concat(lineCounts.map(function(z){return z.count;})));
+
+    var heatGrid = [];
+    LENGTH_ZONES.forEach(function(lz){
+      for (var ci=0; ci<5; ci++){
+        var count = visibleBalls.filter(function(b){return lengthZoneFor(b.yPct).id===lz.id && lineColIndex(b.xPct)===ci;}).length;
+        heatGrid.push({ ci:ci, count:count, lz:lz });
+      }
+    });
+    var maxHeat = Math.max.apply(null, [1].concat(heatGrid.map(function(c){return c.count;})));
+
+    var lastLegit = legit.length;
+    var oversDone = Math.floor(lastLegit/6), ballIntoOver = lastLegit%6;
+
+    var html = "";
+    html += '<div class="pm-header">';
+    html += '<div><div class="pm-subtitle">ProCoach OS &middot; Bowling Analysis</div><div class="pm-title">Pitch Map</div></div>';
+    html += '<input class="pm-input pm-input-date" id="input-date" type="date" value="'+esc(state.sessionDate)+'">';
+    html += '</div>';
+
+    var bowlerIds = Object.keys(state.bowlers);
+    html += '<div class="pm-bowler-row">';
+    bowlerIds.forEach(function(id){
+      var b = state.bowlers[id];
+      html += '<button class="pm-tab '+(id===state.currentBowlerId?"active":"")+'" data-action="switch-bowler" data-id="'+id+'">'+esc(b.name||"Unnamed")+'</button>';
+    });
+    html += '<button class="pm-tab add" data-action="add-bowler">+ Bowler</button></div>';
+
+    html += '<div class="pm-name-row">';
+    html += '<input class="pm-input grow" id="input-bowler" placeholder="Bowler name" value="'+esc(bowler.name)+'">';
+    if (bowlerIds.length>1) html += '<button class="pm-link-btn" data-action="remove-bowler">Remove</button>';
+    html += '</div>';
+
+    html += '<div class="pm-toolbar"><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    html += '<div class="pm-seg"><button data-action="set-hand" data-hand="RHB" class="'+(bowler.hand==="RHB"?"active":"")+'">RHB</button><button data-action="set-hand" data-hand="LHB" class="'+(bowler.hand==="LHB"?"active":"")+'">LHB</button></div>';
+    html += '<div class="pm-seg"><button data-action="set-view" data-view="dots" class="'+(state.viewMode==="dots"?"active":"")+'">Dots</button><button data-action="set-view" data-view="heat" class="'+(state.viewMode==="heat"?"active":"")+'">Heat grid</button></div>';
+    html += '</div><div class="pm-over-indicator">Ov '+oversDone+'.'+ballIntoOver+' &middot; '+statBalls.length+' balls</div></div>';
+
+    if (overNumbers.length>1){
+      html += '<div class="pm-chip-row"><button class="pm-chip '+(state.overFilter==="all"?"active":"")+'" data-action="set-over" data-over="all">All overs</button>';
+      overNumbers.forEach(function(n){ html += '<button class="pm-chip '+(state.overFilter===n?"active":"")+'" data-action="set-over" data-over="'+n+'">Ov '+n+'</button>'; });
+      html += '</div>';
+    }
+
+    html += '<div class="pm-pitch-wrap" id="pitch-wrap"><svg id="pitch-svg" viewBox="-'+RULER_W+' 0 '+VB_W_TOTAL+' '+VB_H+'" class="pm-pitch-svg">';
+    // meter ruler, outside the turf — labels sized/positioned to stay inside the margin
+    for (var m=0; m<=20; m++){
+      var ry = (m/PITCH_LENGTH_M)*VB_H;
+      var major = m%2===0;
+      html += '<line x1="'+(major?-14:-9)+'" y1="'+ry+'" x2="-2" y2="'+ry+'" stroke="rgba(238,242,246,'+(major?0.55:0.28)+')" stroke-width="'+(major?1.2:0.8)+'"/>';
+      if (major) html += '<text x="-18" y="'+(ry+3)+'" text-anchor="end" font-size="8" font-family="IBM Plex Mono, monospace" fill="rgba(238,242,246,0.75)">'+m+'m</text>';
+    }
+    html += '<line x1="-2" y1="0" x2="-2" y2="'+VB_H+'" stroke="rgba(238,242,246,0.3)" stroke-width="1"/>';
+    LENGTH_ZONES.forEach(function(z,i){
+      var y1=(z.from/PITCH_LENGTH_M)*VB_H, y2=(z.to/PITCH_LENGTH_M)*VB_H;
+      html += '<rect x="0" y="'+y1+'" width="'+VB_W+'" height="'+(y2-y1)+'" fill="'+(i%2===0?"rgba(244,241,232,0.045)":"rgba(244,241,232,0)")+'"/>';
+    });
+    [1,2,3,4].forEach(function(i){ html += '<line x1="'+(i*40)+'" y1="0" x2="'+(i*40)+'" y2="'+VB_H+'" stroke="rgba(244,241,232,0.12)" stroke-width="1" stroke-dasharray="3 5"/>'; });
+    LENGTH_ZONES.forEach(function(z){
+      var y=(z.from/PITCH_LENGTH_M)*VB_H;
+      if (z.from>0) html += '<line x1="0" y1="'+y+'" x2="'+VB_W+'" y2="'+y+'" stroke="rgba(244,241,232,0.15)" stroke-width="1"/>';
+      html += '<text x="4" y="'+(((z.from+z.to)/2/PITCH_LENGTH_M)*VB_H)+'" fill="rgba(244,241,232,0.5)" font-size="9" font-family="IBM Plex Mono, monospace">'+z.label+'</text>';
+    });
+    // crease box per ICC Law 7 — bowling crease through the stumps, popping crease 1.22m
+    // in front of it, return creases 1.32m either side of middle stump
+    var poppingYTop = (POPPING_CREASE_M / PITCH_LENGTH_M) * VB_H;
+    var poppingYBottom = VB_H - poppingYTop;
+    var cxL = 100 - CREASE_HALF_W, cxR = 100 + CREASE_HALF_W;
+    // bowling creases (through the stumps)
+    html += '<line x1="'+cxL+'" y1="0" x2="'+cxR+'" y2="0" stroke="#f4f1e8" stroke-width="2.5"/>';
+    html += '<line x1="'+cxL+'" y1="'+VB_H+'" x2="'+cxR+'" y2="'+VB_H+'" stroke="#f4f1e8" stroke-width="2.5"/>';
+    // popping creases (full width — law treats them as unlimited length)
+    html += '<line x1="0" y1="'+poppingYTop+'" x2="'+VB_W+'" y2="'+poppingYTop+'" stroke="#f4f1e8" stroke-width="2" stroke-dasharray="0"/>';
+    html += '<line x1="0" y1="'+poppingYBottom+'" x2="'+VB_W+'" y2="'+poppingYBottom+'" stroke="#f4f1e8" stroke-width="2"/>';
+    // return creases (perpendicular stubs joining bowling crease to popping crease)
+    html += '<line x1="'+cxL+'" y1="0" x2="'+cxL+'" y2="'+poppingYTop+'" stroke="#f4f1e8" stroke-width="1.5" stroke-dasharray="1 2.5"/>';
+    html += '<line x1="'+cxR+'" y1="0" x2="'+cxR+'" y2="'+poppingYTop+'" stroke="#f4f1e8" stroke-width="1.5" stroke-dasharray="1 2.5"/>';
+    html += '<line x1="'+cxL+'" y1="'+VB_H+'" x2="'+cxL+'" y2="'+poppingYBottom+'" stroke="#f4f1e8" stroke-width="1.5" stroke-dasharray="1 2.5"/>';
+    html += '<line x1="'+cxR+'" y1="'+VB_H+'" x2="'+cxR+'" y2="'+poppingYBottom+'" stroke="#f4f1e8" stroke-width="1.5" stroke-dasharray="1 2.5"/>';
+    // prominent stumps + bails, sitting exactly on the bowling crease at each end
+    [0, 1].forEach(function(idx){
+      var stumpY = idx===0 ? 0 : VB_H - 16;
+      [86,100,114].forEach(function(x){
+        html += '<rect x="'+(x-2.4)+'" y="'+stumpY+'" width="4.8" height="16" rx="1.5" fill="#f2c14e" stroke="#3d2a12" stroke-width="1.1"/>';
+      });
+      html += '<rect x="82" y="'+(stumpY-2.5)+'" width="36" height="3.8" rx="1.6" fill="#f7dc8a" stroke="#3d2a12" stroke-width="0.9"/>';
+    });
+    html += '<text x="'+(VB_W/2)+'" y="'+(poppingYTop+14)+'" text-anchor="middle" fill="rgba(244,241,232,0.6)" font-size="9" letter-spacing="1.5" font-family="IBM Plex Mono, monospace">BATTER</text>';
+    html += '<text x="'+(VB_W/2)+'" y="'+(poppingYBottom-8)+'" text-anchor="middle" fill="rgba(244,241,232,0.6)" font-size="9" letter-spacing="1.5" font-family="IBM Plex Mono, monospace">BOWLER</text>';
+
+    if (state.viewMode==="heat"){
+      heatGrid.forEach(function(cell){
+        var y1=(cell.lz.from/PITCH_LENGTH_M)*VB_H, y2=(cell.lz.to/PITCH_LENGTH_M)*VB_H;
+        var t = cell.count/maxHeat;
+        html += '<rect x="'+(cell.ci*40)+'" y="'+y1+'" width="40" height="'+(y2-y1)+'" fill="'+(cell.count?("rgba(255,107,82,"+(0.12+t*0.68)+")"):"transparent")+'" stroke="rgba(244,241,232,0.08)"/>';
+        if (cell.count>0) html += '<text x="'+(cell.ci*40+20)+'" y="'+((y1+y2)/2+4)+'" text-anchor="middle" font-size="13" font-family="IBM Plex Mono, monospace" fill="#f4f1e8" font-weight="600">'+cell.count+'</text>';
+      });
+    } else {
+      decluttered.forEach(function(b){
+        var o = outcomeMap[b.outcome];
+        var big = o.id==="4"||o.id==="6"||o.id==="W";
+        html += '<circle cx="'+b.dx+'" cy="'+b.dy+'" r="'+(big?7:5.5)+'" fill="'+o.color+'" stroke="#0a1420" stroke-width="1.3" opacity="0.95"/>';
+      });
+    }
+    if (state.pending) html += '<circle cx="'+((state.pending.xPct/100)*VB_W)+'" cy="'+((state.pending.yPct/100)*VB_H)+'" r="7" fill="none" stroke="#f4f1e8" stroke-width="1.5" stroke-dasharray="2 2"/>';
+    html += '</svg>';
+    if (bowler.balls.length===0 && !state.pending) html += '<div class="pm-empty-hint">Tap anywhere on the pitch to plot a ball</div>';
+
+    if (state.pending){
+      var POP_W=186, POP_H=126, p=state.pending;
+      var left = p.px+12, top = p.py+12;
+      if (left+POP_W > p.wrapW-6) left = p.px-POP_W-12;
+      if (top+POP_H > p.wrapH-6) top = p.py-POP_H-12;
+      left = clamp(left, 4, Math.max(4, p.wrapW-POP_W-4));
+      top = clamp(top, 4, Math.max(4, p.wrapH-POP_H-4));
+      html += '<div class="pm-popover" style="left:'+left+'px;top:'+top+'px;">';
+      OUTCOMES.forEach(function(o){ html += '<button class="pm-outcome-btn" style="background:'+o.color+'" data-action="commit-outcome" data-outcome="'+o.id+'">'+o.label+'</button>'; });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="pm-legend-row">';
+    OUTCOMES.forEach(function(o){ html += '<span><span class="pm-legend-dot" style="background:'+o.color+'"></span>'+o.label+'</span>'; });
+    html += '</div>';
+
+    html += '<div class="pm-btn-row">';
+    html += '<button class="pm-btn" data-action="save">Save session</button>';
+    html += '<button class="pm-btn secondary" data-action="load-open">Load</button>';
+    html += '<button class="pm-btn secondary" data-action="export">Export JSON</button>';
+    html += '<button class="pm-btn secondary" data-action="share-image">Share image</button>';
+    html += '<button class="pm-btn secondary" data-action="undo" '+(bowler.balls.length?"":"disabled")+'>Undo</button>';
+    html += '<button class="pm-btn danger" data-action="clear" '+(bowler.balls.length?"":"disabled")+'>Clear</button>';
+    html += '</div>';
+    if (state.status) html += '<div class="pm-status">'+esc(state.status)+'</div>';
+
+    html += '<div class="pm-panel"><div class="pm-panel-title">Summary '+(state.overFilter!=="all"?('<span class="dim">Over '+state.overFilter+'</span>'):'')+'</div>';
+    html += '<div class="pm-stat-grid">';
+    [["Balls",statBalls.length],["Runs",totalRuns],["Wickets",wickets],["Economy",economy.toFixed(1)],["Dot ball",dotPct.toFixed(0)+"%"],["Boundaries",boundaries]].forEach(function(s){
+      html += '<div class="pm-stat"><div class="pm-stat-val">'+s[1]+'</div><div class="pm-stat-label">'+s[0]+'</div></div>';
+    });
+    html += '</div><div class="pm-seam"></div><div class="pm-panel-title" style="font-size:12.5px">Length</div>';
+    lengthCounts.forEach(function(z){
+      html += '<div class="pm-zone-row"><div class="pm-zone-label">'+z.label+'</div><div class="pm-zone-bar-track"><div class="pm-zone-bar-fill" style="width:'+((z.count/maxLengthCount)*100)+'%"></div></div><div class="pm-zone-count">'+z.count+'</div></div>';
+    });
+    html += '<div class="pm-seam"></div><div class="pm-panel-title" style="font-size:12.5px">Line ('+(bowler.hand==="LHB"?"left-hand":"right-hand")+" batter's view)"+'</div>';
+    lineCounts.forEach(function(z){
+      html += '<div class="pm-zone-row"><div class="pm-zone-label">'+z.label+'</div><div class="pm-zone-bar-track"><div class="pm-zone-bar-fill" style="width:'+((z.count/maxLineCount)*100)+'%"></div></div><div class="pm-zone-count">'+z.count+'</div></div>';
+    });
+    html += '</div>';
+
+    html += '<div class="pm-panel"><div class="pm-panel-title">Ball log</div>';
+    if (bowler.balls.length===0) html += '<div style="font-size:12px;color:var(--text-dim)">No balls plotted yet.</div>';
+    html += '<div class="pm-ball-list">';
+    ballsWithOvers.forEach(function(b){
+      var o = outcomeMap[b.outcome], lz = lengthZoneFor(b.yPct), ln = lineLabel(b.xPct, bowler.hand);
+      html += '<div class="pm-ball-row"><span class="pm-ball-tag"><span class="pm-ball-swatch" style="background:'+o.color+'"></span>'+b.over+'.'+b.ballNo+' '+o.label+' &mdash; '+lz.label+', '+ln+'</span><button class="pm-x-btn" data-action="remove-ball" data-id="'+b.id+'">&times;</button></div>';
+    });
+    html += '</div></div>';
+
+    if (state.showLoad){
+      var keys = savedSessionKeys();
+      html += '<div class="pm-modal-backdrop"><div class="pm-modal"><div class="pm-panel-title">Saved sessions</div><div class="pm-load-list">';
+      if (keys.length===0) html += '<div style="font-size:12px;color:var(--text-dim)">Nothing saved yet.</div>';
+      keys.forEach(function(k){
+        var parts = k.split(":"); var date = parts[1]||"";
+        var count = 0;
+        try { var d = JSON.parse(localStorage.getItem(k)); count = Object.keys(d.bowlers||{}).length || (d.balls?1:0); } catch(e){}
+        html += '<div class="pm-load-row"><span>'+esc(date)+' &middot; '+count+' bowler'+(count===1?"":"s")+'</span><span style="display:flex;gap:6px;"><button class="pm-btn secondary" style="padding:8px 12px" data-action="load-session" data-key="'+esc(k)+'">Load</button><button class="pm-x-btn" data-action="delete-session" data-key="'+esc(k)+'">&#128465;</button></span></div>';
+      });
+      html += '</div><div style="margin-top:12px;text-align:right"><button class="pm-btn secondary" data-action="load-close">Close</button></div></div></div>';
+    }
+
+    app.innerHTML = html;
+
+    var bowlerInput = document.getElementById("input-bowler");
+    bowlerInput.addEventListener("input", function(){ cb().name = bowlerInput.value; });
+    var dateInput = document.getElementById("input-date");
+    dateInput.addEventListener("input", function(){ state.sessionDate = dateInput.value; });
+
+    var svg = document.getElementById("pitch-svg");
+    svg.addEventListener("click", function(e){
+      var wrap = document.getElementById("pitch-wrap");
+      var svgRect = svg.getBoundingClientRect();
+      var wrapRect = wrap.getBoundingClientRect();
+      var svgUnitX = ((e.clientX-svgRect.left)/svgRect.width)*VB_W_TOTAL - RULER_W;
+      if (svgUnitX < 0) return; // tapped the ruler margin, not the turf
+      var xPct = clamp((svgUnitX/VB_W)*100, 0, 100);
+      var yPct = clamp(((e.clientY-svgRect.top)/svgRect.height)*100, 0, 100);
+      state.pending = { xPct:xPct, yPct:yPct, px:e.clientX-wrapRect.left, py:e.clientY-wrapRect.top, wrapW:wrapRect.width, wrapH:wrapRect.height };
+      render();
+    });
+  }
+
+  app.addEventListener("click", function(e){
+    if (e.target.classList && e.target.classList.contains("pm-modal-backdrop")){
+      state.showLoad = false; render(); return;
+    }
+    var el = e.target.closest("[data-action]");
+    if (!el) return;
+    var action = el.getAttribute("data-action");
+    if (action==="switch-bowler"){ state.currentBowlerId = el.getAttribute("data-id"); render(); }
+    else if (action==="add-bowler"){
+      var name = window.prompt("Bowler name?", "");
+      if (name===null) return;
+      var id = uid();
+      state.bowlers[id] = { name: name.trim() || ("Bowler "+(Object.keys(state.bowlers).length+1)), hand:"RHB", balls:[] };
+      state.currentBowlerId = id; render();
+    }
+    else if (action==="remove-bowler"){
+      if (Object.keys(state.bowlers).length<=1) return;
+      if (!confirm("Remove "+(cb().name||"this bowler")+" and their plotted balls?")) return;
+      delete state.bowlers[state.currentBowlerId];
+      state.currentBowlerId = Object.keys(state.bowlers)[0];
+      render();
+    }
+    else if (action==="set-hand"){ cb().hand = el.getAttribute("data-hand"); render(); }
+    else if (action==="set-view"){ state.viewMode = el.getAttribute("data-view"); render(); }
+    else if (action==="set-over"){ var v = el.getAttribute("data-over"); state.overFilter = v==="all"?"all":Number(v); render(); }
+    else if (action==="commit-outcome"){
+      if (state.pending){
+        cb().balls.push({ id:uid(), xPct:state.pending.xPct, yPct:state.pending.yPct, outcome:el.getAttribute("data-outcome"), t:Date.now() });
+        state.pending = null; render();
+      }
+    }
+    else if (action==="remove-ball"){ var id = el.getAttribute("data-id"); cb().balls = cb().balls.filter(function(b){return b.id!==id;}); render(); }
+    else if (action==="undo"){ cb().balls = cb().balls.slice(0,-1); render(); }
+    else if (action==="clear"){ if (cb().balls.length && confirm("Clear all balls for "+(cb().name||"this bowler")+"?")){ cb().balls = []; render(); } }
+    else if (action==="save"){
+      var anyNamed = Object.values(state.bowlers).some(function(b){return b.name && b.name.trim();});
+      if (!anyNamed){ state.status = "Add at least one bowler name before saving."; render(); setTimeout(function(){ state.status=""; render(); }, 2500); return; }
+      var key = "pitchsession:"+state.sessionDate+":"+Date.now();
+      var payload = { date: state.sessionDate, bowlers: state.bowlers, savedAt: Date.now() };
+      try { localStorage.setItem(key, JSON.stringify(payload)); state.status = "Session saved."; }
+      catch(err){ state.status = "Couldn't save — try again."; }
+      render(); setTimeout(function(){ state.status=""; render(); }, 2500);
+    }
+    else if (action==="load-open"){ state.showLoad = true; render(); }
+    else if (action==="load-close"){ state.showLoad = false; render(); }
+    else if (action==="load-session"){
+      var key = el.getAttribute("data-key");
+      try {
+        var data = JSON.parse(localStorage.getItem(key));
+        state.sessionDate = data.date || state.sessionDate;
+        if (data.bowlers) { state.bowlers = data.bowlers; }
+        else if (data.balls) { var id2 = uid(); state.bowlers = {}; state.bowlers[id2] = { name:data.bowler||"Bowler 1", hand:data.hand||"RHB", balls:data.balls }; }
+        state.currentBowlerId = Object.keys(state.bowlers)[0];
+        state.showLoad = false;
+      } catch(err){ state.status = "Couldn't load that session."; }
+      render();
+    }
+    else if (action==="delete-session"){ localStorage.removeItem(el.getAttribute("data-key")); render(); }
+    else if (action==="export"){
+      var payload = { date: state.sessionDate, bowlers: state.bowlers, exportedAt: new Date().toISOString() };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = "pitchmap-session-"+state.sessionDate+".json";
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+    else if (action==="share-image"){ shareImage(); }
+  });
+
+  function shareImage(){
+    var bowler = cb();
+    var svg = document.getElementById("pitch-svg");
+    var clone = svg.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", VB_W_TOTAL);
+    clone.setAttribute("height", VB_H);
+    var svgData = new XMLSerializer().serializeToString(clone);
+    var svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    var svgUrl = URL.createObjectURL(svgBlob);
+    var img = new Image();
+    img.onload = function(){
+      var scale = 2.5, padTop = 96, padSide = 20, padBottom = 24;
+      var canvas = document.createElement("canvas");
+      canvas.width = (VB_W_TOTAL + padSide*2) * scale;
+      canvas.height = (VB_H + padTop + padBottom) * scale;
+      var ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#0a1420";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = "#22c58b";
+      ctx.font = "700 19px Poppins, sans-serif";
+      ctx.fillText((bowler.name || "Bowler") + " — Pitch Map", padSide, 30);
+      ctx.fillStyle = "#8b96a5";
+      ctx.font = "500 11.5px Inter, sans-serif";
+      ctx.fillText(state.sessionDate + "  ·  " + bowler.hand + "  ·  ProCoach OS", padSide, 48);
+
+      var ballsWithOvers = withOvers(bowler.balls);
+      var legit = bowler.balls.filter(function(b){return b.outcome!=="wd" && b.outcome!=="nb";});
+      var totalRuns = bowler.balls.reduce(function(s,b){return s+outcomeMap[b.outcome].runs;},0);
+      var wickets = bowler.balls.filter(function(b){return b.outcome==="W";}).length;
+      var economy = legit.length ? (totalRuns/legit.length)*6 : 0;
+      ctx.fillStyle = "#eef2f6";
+      ctx.font = "600 12.5px Inter, sans-serif";
+      ctx.fillText(bowler.balls.length + " balls  ·  " + totalRuns + " runs  ·  " + wickets + " wkts  ·  econ " + economy.toFixed(1), padSide, 70);
+
+      ctx.drawImage(img, padSide, padTop, VB_W_TOTAL, VB_H);
+      URL.revokeObjectURL(svgUrl);
+
+      canvas.toBlob(function(blob){
+        var fname = "pitchmap-" + (bowler.name || "bowler").trim().toLowerCase().replace(/\s+/g, "-") + "-" + state.sessionDate + ".png";
+        var file;
+        try { file = new File([blob], fname, { type: "image/png" }); } catch (e) { file = null; }
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: "Pitch Map", text: "Pitch map — " + (bowler.name || "Bowler") }).catch(function(){});
+        } else {
+          var dlUrl = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = dlUrl; a.download = fname;
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(dlUrl);
+        }
+      }, "image/png");
+    };
+    img.src = svgUrl;
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
